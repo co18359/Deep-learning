@@ -1,0 +1,68 @@
+import numpy as np
+import pandas as pd 
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from keras.models import Sequential
+from keras.layers import Conv1D
+from keras.layers import LSTM
+from keras.layers import Dense
+from keras.layers import Bidirectional
+from keras.layers import Lambda
+from keras.callbacks import LearningRateScheduler
+from keras.optimizers import Optimizer
+
+def plot_series(time,series,format='-',start=0,end =None):
+    plt.plot(time[start:end],series[start:end],format)
+    plt.xlabel('Time')
+    plt.ylabel('Price')
+    plt.grid(True)
+    
+    dataset = pd.read_csv('ongc2.csv')
+price =  dataset.iloc[:,5]
+time_step = dataset.iloc[:,0]
+series = np.array(price)
+print(price.max())
+print(series.shape)
+time = np.array(time_step)
+plt.figure(figsize=(10, 6))
+plot_series(time, series)
+
+
+def windowed_dataset(series, window_size, batch_size, shuffle_buffer):
+    series = tf.expand_dims(series, axis=-1)
+    ds = tf.data.Dataset.from_tensor_slices(series)
+    ds = ds.window(window_size + 1, shift=1, drop_remainder=True)
+    ds = ds.flat_map(lambda w: w.batch(window_size + 1))
+    ds = ds.shuffle(shuffle_buffer)
+    ds = ds.map(lambda w: (w[:-1], w[-1:]))
+    return ds.batch(batch_size).prefetch(1)
+    
+def model_forecast(model, series, window_size):
+    ds = tf.data.Dataset.from_tensor_slices(series)
+    ds = ds.window(window_size, shift=1, drop_remainder=True)
+    ds = ds.flat_map(lambda w: w.batch(window_size))
+    ds = ds.batch(32).prefetch(1)
+    forecast = model.predict(ds)
+    return forecast
+    
+ train_set = windowed_dataset(x_train, window_size, batch_size, shuffle_buffer_size)
+print(train_set)
+print(x_train.shape)
+window_size = 70
+batch_size = 90
+model = tf.keras.models.Sequential([
+  tf.keras.layers.LSTM(64,input_shape=[None, 1], return_sequences=True),
+  tf.keras.layers.LSTM(64, return_sequences=True),
+  tf.keras.layers.LSTM(64),  
+  tf.keras.layers.Dense(1),
+  tf.keras.layers.Lambda(lambda x: x * 1481)
+])
+
+optimizer = tf.keras.optimizers.Adam(lr=3e-4)
+model.compile(loss=tf.keras.losses.Huber(),
+              optimizer=optimizer,
+              metrics=["mae"])
+history = model.fit(train_set, epochs=150)
+
+rnn_forecast = model_forecast(model, series[:, np.newaxis], window_size)
+rnn_forecast = rnn_forecast[split_time - window_size:-1,-1]
