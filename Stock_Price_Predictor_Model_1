@@ -17,15 +17,7 @@ def plot_series(time,series,format='-',start=0,end =None):
     plt.ylabel('Price')
     plt.grid(True)
     
-    dataset = pd.read_csv('ongc2.csv')
-price =  dataset.iloc[:,5]
-time_step = dataset.iloc[:,0]
-series = np.array(price)
-print(price.max())
-print(series.shape)
-time = np.array(time_step)
-plt.figure(figsize=(10, 6))
-plot_series(time, series)
+  
 
 
 def windowed_dataset(series, window_size, batch_size, shuffle_buffer):
@@ -45,7 +37,7 @@ def model_forecast(model, series, window_size):
     forecast = model.predict(ds)
     return forecast
     
- train_set = windowed_dataset(x_train, window_size, batch_size, shuffle_buffer_size)
+train_set = windowed_dataset(x_train, window_size, batch_size, shuffle_buffer_size)
 print(train_set)
 print(x_train.shape)
 window_size = 70
